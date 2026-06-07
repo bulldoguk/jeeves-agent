@@ -8,6 +8,11 @@ Planning
 
 ## Repo
 - Local path: ~/Documents/Claude/projects/jeeves-agent
+- Remote: https://github.com/bulldoguk/jeeves-agent
+- Primary branch: main
+- Add-on lives in `jeeves_agent/` (config.yaml, Dockerfile, run.sh,
+  jeeves/ source package). `repository.yaml` at repo root makes it
+  installable as a custom HA add-on repository.
 
 ## Overview
 A local Home Assistant monitoring agent. Watches for anomalous behavior
