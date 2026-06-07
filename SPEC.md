@@ -1,5 +1,11 @@
 # Jeeves Agent — Spec (v0.1, draft)
 
+> Repo: https://github.com/bulldoguk/jeeves-agent — initial walking-skeleton
+> scaffold pushed (v0.1.0): connects to HA, polls watched entities for
+> staleness, tracks open issues in SQLite, raises/clears notifications.
+> Install via **Settings → Add-ons → Add-on Store → ⋮ → Repositories** and
+> add the repo URL above.
+
 ## Goal
 
 A monitoring agent for Home Assistant that watches for anomalous behavior
