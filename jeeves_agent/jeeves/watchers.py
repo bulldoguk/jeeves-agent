@@ -13,9 +13,12 @@ to the poll loop required.
 
 from collections import namedtuple
 
+from jeeves.baselines import derive_baseline, is_anomalous, numeric_values
+
 Issue = namedtuple("Issue", ["key", "summary"])
 
 STALE_THRESHOLD_MINUTES = 30
+HISTORY_WINDOW_HOURS = 24 * 10  # matches HA's typical default recorder retention
 
 
 def check_stale_entities(ha_client, config, now):
@@ -59,6 +62,49 @@ def check_stale_entities(ha_client, config, now):
     return issues
 
 
+def check_temperature_anomalies(ha_client, config, now):
+    """Flag temperature readings that fall outside the sensor's own
+    historical baseline (or, for sensors with too little history, outside
+    a loose fixed sanity range — see jeeves.baselines).
+
+    Each watched sensor gets its own baseline derived from its own
+    history — a bedroom and a freezer have very different "normal"
+    ranges, and this avoids hand-maintaining per-sensor config.
+    """
+    issues = []
+    for entity_id in config.watch_temperature_entities:
+        try:
+            history = ha_client.get_history(entity_id, hours=HISTORY_WINDOW_HOURS)
+            current_state = ha_client.get_state(entity_id)
+        except Exception as exc:
+            issues.append(
+                Issue(
+                    key=f"unreachable:{entity_id}",
+                    summary=f"Could not read {entity_id} from Home Assistant ({exc})",
+                )
+            )
+            continue
+
+        values = numeric_values(current_state and [current_state] or [])
+        if not values:
+            continue
+        current_value = values[0]
+
+        baseline = derive_baseline(history)
+        if is_anomalous(current_value, baseline):
+            issues.append(
+                Issue(
+                    key=f"temp_anomaly:{entity_id}",
+                    summary=(
+                        f"{entity_id} reading {current_value:g} is outside its "
+                        f"normal range ({baseline.low:.1f}–{baseline.high:.1f}, "
+                        f"{baseline.source} baseline)"
+                    ),
+                )
+            )
+    return issues
+
+
 def _minutes_since(iso_timestamp, now):
     from datetime import datetime
 
@@ -72,4 +118,5 @@ def _minutes_since(iso_timestamp, now):
 # Registered watchers, run in order each poll cycle.
 WATCHERS = [
     check_stale_entities,
+    check_temperature_anomalies,
 ]

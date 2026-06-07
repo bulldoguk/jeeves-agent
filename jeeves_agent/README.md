@@ -8,10 +8,10 @@ Runs entirely locally — no cloud / external LLM API calls.
 
 ## Status
 
-Early skeleton (v0.1.0): connects to HA, polls watched entities for
-staleness, and notifies on new/resolved issues. Most of the planned
-detection logic (learned temperature baselines, camera event-rate
-comparison, system-health and update checks) is not yet built.
+Early build (v0.2.0): connects to HA, polls watched entities for
+staleness, flags temperature readings outside their own historical
+baseline, and notifies on new/resolved issues. Camera event-rate
+comparison, system-health, and update checks are not yet built.
 
 ## Installation
 
@@ -40,7 +40,14 @@ Issue tracking state is stored in `/share/jeeves_agent/jeeves.db` (SQLite)
 ## How it works (current skeleton)
 
 Each poll cycle, registered watchers (see `jeeves/watchers.py`) check the
-watched entities and return a list of currently-open issues. The agent
+watched entities and return a list of currently-open issues:
+
+- **Stale entities** — any watched entity that hasn't reported in 30 minutes
+- **Temperature anomalies** — a reading more than 3 standard deviations
+  from that sensor's own historical baseline (derived from HA's existing
+  history; sensors with too little history use a loose fixed sanity range
+  instead — see `jeeves/baselines.py`)
+ The agent
 diffs that against previously-open issues in SQLite:
 
 - New issue → notification sent, recorded as open
