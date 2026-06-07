@@ -75,13 +75,18 @@ new check is a small, isolated addition (not a rework of the core loop).
 
 ## Decisions (from interview, 2026-06-07)
 
-- **Temperature baselines: learned from history.** Jeeves derives a
-  per-sensor "normal" range from HA's historical data rather than relying
-  on hand-maintained config.
-  - **Cold start:** until enough history exists to trust a learned
-    baseline, fall back to loose fixed sanity-check ranges (e.g. "nothing
-    indoors should be below freezing or above 40°C") so Jeeves isn't
-    silent — and isn't noisy — during warm-up.
+- **Temperature baselines: learned from history — pulled immediately,
+  not accumulated over time.** HA's recorder already retains history
+  (typically ~10 days of raw state history, plus long-term statistics
+  indefinitely for numeric sensors like temperature). Jeeves queries
+  `/api/history/period` (already wired in `ha_client.get_history`) on
+  first run and derives the baseline from whatever HA already has — no
+  warm-up period required for sensors with normal history.
+  - **Cold start fallback:** only kicks in for genuinely sparse entities
+    (e.g. a sensor added a day ago with too little history to trust). In
+    that case, fall back to loose fixed sanity-check ranges (e.g. "nothing
+    indoors should be below freezing or above 40°C") until enough history
+    accumulates.
 - **Camera anomalies (v1):** two checks —
   1. Camera goes offline / stops reporting (heartbeat-style check).
   2. Event rate is way outside that camera's own historical norm (compare
@@ -102,9 +107,10 @@ new check is a small, isolated addition (not a rework of the core loop).
 
 ## Remaining open questions
 
-- [ ] How much history counts as "enough" to trust a learned temperature
-      baseline — needs a concrete threshold (e.g. 2 weeks of data,
-      minimum N readings) before switching off the fixed-default fallback.
+- [ ] Minimum history threshold for a *new/sparse* sensor to switch from
+      the fixed-default fallback to a learned baseline (e.g. minimum N
+      readings or M days) — most sensors won't hit this path since HA
+      already retains history, but new entities will.
 - [ ] Exact "way outside historical norm" threshold for camera event
       rate — needs real RustyCam history to calibrate against (e.g. is
       3x the daily average too sensitive? 5x?).
