@@ -22,7 +22,9 @@ raises HA notifications when something looks off. Runs fully local
 cost. Auto-remediation of issues/updates is a planned later phase, once
 the watcher itself is proven reliable.
 
-See [SPEC.md](SPEC.md) for the working spec.
+See [SPEC.md](SPEC.md) for the working spec, and [decisions/](decisions/)
+for ADRs on significant architecture calls (local-only, SQLite issue
+tracking, learned temperature baselines, etc.).
 
 ## Notes
 - Sibling HA add-ons for reference/patterns: RustyCam (projects/rustycam),
