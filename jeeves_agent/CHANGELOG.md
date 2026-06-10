@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.3.1
+
+- Persistent notifications: issues now create a persistent notification in
+  the HA UI (bell icon) on open and dismiss it on resolve — so open issues
+  are always visible in HA, not just as transient mobile push alerts.
+- Resolved notification message now includes the original issue summary
+  rather than just the raw issue key.
+
 ## 0.3.0
 
 - Added `check_camera_event_rate`: counts daily motion events on

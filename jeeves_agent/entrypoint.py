@@ -55,10 +55,13 @@ def run_poll_cycle(ha_client, ollama_client, store, config):
             seen_keys.add(issue.key)
             if not store.is_open(issue.key):
                 ha_client.notify(config.notify_target, "Jeeves: issue detected", issue.summary)
+                ha_client.create_persistent_notification(issue.key, "Jeeves", issue.summary)
             store.open_issue(issue.key, issue.summary, timestamp)
 
     for key in store.open_keys() - seen_keys:
-        ha_client.notify(config.notify_target, "Jeeves: resolved", f"No longer an issue: {key}")
+        summary = store.get_summary(key)
+        ha_client.notify(config.notify_target, "Jeeves: resolved", f"Resolved: {summary}")
+        ha_client.dismiss_persistent_notification(key)
         store.close_issue(key)
 
 

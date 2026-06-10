@@ -60,6 +60,12 @@ class IssueStore:
         )
         self.conn.commit()
 
+    def get_summary(self, key):
+        row = self.conn.execute(
+            "SELECT summary FROM issues WHERE key = ?", (key,)
+        ).fetchone()
+        return row[0] if row else key
+
     def close_issue(self, key):
         self.conn.execute("DELETE FROM issues WHERE key = ?", (key,))
         self.conn.commit()

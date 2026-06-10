@@ -60,6 +60,24 @@ class HomeAssistantClient:
         resp.raise_for_status()
         return resp.json().get("start_time", "")
 
+    def create_persistent_notification(self, notification_id, title, message):
+        resp = requests.post(
+            f"{self.base_url}/api/services/persistent_notification/create",
+            headers=self.headers,
+            json={"title": title, "message": message, "notification_id": notification_id},
+            timeout=10,
+        )
+        resp.raise_for_status()
+
+    def dismiss_persistent_notification(self, notification_id):
+        resp = requests.post(
+            f"{self.base_url}/api/services/persistent_notification/dismiss",
+            headers=self.headers,
+            json={"notification_id": notification_id},
+            timeout=10,
+        )
+        resp.raise_for_status()
+
     def notify(self, notify_target, title, message):
         service = notify_target.split(".", 1)[-1]
         resp = requests.post(
