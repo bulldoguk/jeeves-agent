@@ -1,7 +1,6 @@
 # Jeeves Agent — Claude Instructions
 
-## Type
-coding
+type: coding
 
 ## Status
 Planning
