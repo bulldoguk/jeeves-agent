@@ -1,4 +1,5 @@
 import requests
+from datetime import datetime, timedelta, timezone
 
 
 class HomeAssistantClient:
@@ -21,8 +22,9 @@ class HomeAssistantClient:
         return resp.json()
 
     def get_history(self, entity_id, hours=24):
+        start = datetime.now(timezone.utc) - timedelta(hours=hours)
         resp = requests.get(
-            f"{self.base_url}/api/history/period",
+            f"{self.base_url}/api/history/period/{start.isoformat()}",
             headers=self.headers,
             params={"filter_entity_id": entity_id},
             timeout=30,
