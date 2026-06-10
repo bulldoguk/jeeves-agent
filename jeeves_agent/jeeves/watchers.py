@@ -221,6 +221,18 @@ def check_ha_system_health(ha_client, ollama_client, store, config, now):
         ))
         return issues
 
+    # Build set of entities suppressed because their circuit switch is off.
+    # Config entries are "switch_entity_id:light_entity_id" pairs; when the
+    # switch is off the downstream light being unavailable is expected.
+    state_map = {s["entity_id"]: s.get("state") for s in all_states}
+    circuit_suppressed = set()
+    for mapping in getattr(config, "circuit_switches", []):
+        if ":" not in mapping:
+            continue
+        switch_id, entity_id = mapping.split(":", 1)
+        if state_map.get(switch_id.strip()) in ("off", "unavailable"):
+            circuit_suppressed.add(entity_id.strip())
+
     # Unavailable entities
     for state in all_states:
         entity_id = state.get("entity_id", "")
@@ -228,6 +240,8 @@ def check_ha_system_health(ha_client, ollama_client, store, config, now):
         if domain not in ZOMBIE_DOMAINS:
             continue
         if state.get("state") not in ("unavailable", "unknown"):
+            continue
+        if entity_id in circuit_suppressed:
             continue
         last_changed = state.get("last_changed")
         age_minutes = _minutes_since(last_changed, now) if last_changed else None

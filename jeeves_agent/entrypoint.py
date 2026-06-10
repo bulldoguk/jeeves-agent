@@ -18,6 +18,7 @@ class Config:
     watch_temperature_entities: list = field(default_factory=list)
     watch_camera_entities: list = field(default_factory=list)
     watch_camera_motion_entities: list = field(default_factory=list)
+    circuit_switches: list = field(default_factory=list)
     ollama_url: str = ""
     ollama_model: str = "llama3.2"
 
@@ -39,6 +40,9 @@ def load_config():
         ),
         watch_camera_motion_entities=split_entities(
             os.environ.get("WATCH_CAMERA_MOTION_ENTITIES", "")
+        ),
+        circuit_switches=split_entities(
+            os.environ.get("CIRCUIT_SWITCHES", "")
         ),
         ollama_url=os.environ.get("OLLAMA_URL", ""),
         ollama_model=os.environ.get("OLLAMA_MODEL", "llama3.2"),
