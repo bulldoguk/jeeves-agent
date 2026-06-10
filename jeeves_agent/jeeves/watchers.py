@@ -1,7 +1,7 @@
 """
 Watcher registry. Each watcher is a function:
 
-    watcher(ha_client, config) -> list[Issue]
+    watcher(ha_client, ollama_client, config, now) -> list[Issue]
 
 where Issue is (key, summary). Returning an issue means "this is currently
 a problem"; the poll loop diffs against open issues to decide what to
@@ -17,11 +17,12 @@ from jeeves.baselines import derive_baseline, is_anomalous, numeric_values
 
 Issue = namedtuple("Issue", ["key", "summary"])
 
-STALE_THRESHOLD_MINUTES = 30
+TEMPERATURE_STALE_MINUTES = 30
+CAMERA_STALE_MINUTES = 10
 HISTORY_WINDOW_HOURS = 24 * 10  # matches HA's typical default recorder retention
 
 
-def check_stale_entities(ha_client, config, now):
+def check_stale_entities(ha_client, ollama_client, config, now):
     """Flag any watched entity that hasn't updated in STALE_THRESHOLD_MINUTES.
 
     This is the simplest possible anomaly: "this thing has gone quiet."
@@ -30,39 +31,43 @@ def check_stale_entities(ha_client, config, now):
     is wrong (offline, integration error, dead battery).
     """
     issues = []
-    entities = config.watch_temperature_entities + config.watch_camera_entities
-    for entity_id in entities:
-        try:
-            state = ha_client.get_state(entity_id)
-        except Exception as exc:
-            issues.append(
-                Issue(
-                    key=f"unreachable:{entity_id}",
-                    summary=f"Could not read {entity_id} from Home Assistant ({exc})",
+    checks = [
+        (config.watch_temperature_entities, TEMPERATURE_STALE_MINUTES),
+        (config.watch_camera_entities, CAMERA_STALE_MINUTES),
+    ]
+    for entities, threshold in checks:
+        for entity_id in entities:
+            try:
+                state = ha_client.get_state(entity_id)
+            except Exception as exc:
+                issues.append(
+                    Issue(
+                        key=f"unreachable:{entity_id}",
+                        summary=f"Could not read {entity_id} from Home Assistant ({exc})",
+                    )
                 )
-            )
-            continue
+                continue
 
-        last_changed = state.get("last_changed")
-        if last_changed is None:
-            continue
+            last_changed = state.get("last_changed")
+            if last_changed is None:
+                continue
 
-        age_minutes = _minutes_since(last_changed, now)
-        if age_minutes is not None and age_minutes > STALE_THRESHOLD_MINUTES:
-            issues.append(
-                Issue(
-                    key=f"stale:{entity_id}",
-                    summary=(
-                        f"{entity_id} hasn't reported in "
-                        f"{int(age_minutes)} minutes (expected every "
-                        f"{STALE_THRESHOLD_MINUTES})"
-                    ),
+            age_minutes = _minutes_since(last_changed, now)
+            if age_minutes is not None and age_minutes > threshold:
+                issues.append(
+                    Issue(
+                        key=f"stale:{entity_id}",
+                        summary=(
+                            f"{entity_id} hasn't reported in "
+                            f"{int(age_minutes)} minutes (expected every "
+                            f"{threshold})"
+                        ),
+                    )
                 )
-            )
     return issues
 
 
-def check_temperature_anomalies(ha_client, config, now):
+def check_temperature_anomalies(ha_client, ollama_client, config, now):
     """Flag temperature readings that fall outside the sensor's own
     historical baseline (or, for sensors with too little history, outside
     a loose fixed sanity range — see jeeves.baselines).
