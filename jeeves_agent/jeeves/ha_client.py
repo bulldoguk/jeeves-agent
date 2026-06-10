@@ -33,6 +33,33 @@ class HomeAssistantClient:
         data = resp.json()
         return data[0] if data else []
 
+    def get_all_states(self):
+        resp = requests.get(
+            f"{self.base_url}/api/states",
+            headers=self.headers,
+            timeout=30,
+        )
+        resp.raise_for_status()
+        return resp.json()
+
+    def get_error_log(self):
+        resp = requests.get(
+            f"{self.base_url}/api/error_log",
+            headers=self.headers,
+            timeout=30,
+        )
+        resp.raise_for_status()
+        return resp.text
+
+    def get_start_time(self):
+        resp = requests.get(
+            f"{self.base_url}/api/",
+            headers=self.headers,
+            timeout=10,
+        )
+        resp.raise_for_status()
+        return resp.json().get("start_time", "")
+
     def notify(self, notify_target, title, message):
         service = notify_target.split(".", 1)[-1]
         resp = requests.post(

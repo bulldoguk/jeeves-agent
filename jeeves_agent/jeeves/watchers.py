@@ -1,7 +1,7 @@
 """
 Watcher registry. Each watcher is a function:
 
-    watcher(ha_client, ollama_client, config, now) -> list[Issue]
+    watcher(ha_client, ollama_client, store, config, now) -> list[Issue]
 
 where Issue is (key, summary). Returning an issue means "this is currently
 a problem"; the poll loop diffs against open issues to decide what to
@@ -11,6 +11,7 @@ Adding a new check = write a function and register it below — no changes
 to the poll loop required.
 """
 
+import re
 from collections import namedtuple, defaultdict
 from datetime import datetime
 
@@ -23,9 +24,23 @@ CAMERA_STALE_MINUTES = 10
 HISTORY_WINDOW_HOURS = 24 * 10  # matches HA's typical default recorder retention
 CAMERA_EVENT_RATE_MULTIPLIER = 5
 MIN_CAMERA_HISTORY_DAYS = 3  # need at least this many past days to trust the average
+UNAVAILABLE_GRACE_MINUTES = 5
+
+# Physical device domains where unavailable/unknown signals a real problem.
+# Excludes helpers, automations, scripts, persons, zones, and domains whose
+# default state is unknown until first interaction (button, event).
+ZOMBIE_DOMAINS = frozenset([
+    "alarm_control_panel", "binary_sensor", "camera", "climate", "cover",
+    "device_tracker", "fan", "humidifier", "lawn_mower", "light", "lock",
+    "media_player", "number", "remote", "select", "sensor", "siren",
+    "switch", "text", "vacuum", "valve", "water_heater",
+])
+
+_LOG_LEVEL_RE = re.compile(r"^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2} (ERROR|CRITICAL)")
+_LOG_LOGGER_RE = re.compile(r"\[([^\]]+)\]")
 
 
-def check_stale_entities(ha_client, ollama_client, config, now):
+def check_stale_entities(ha_client, ollama_client, store, config, now):
     """Flag any watched entity that hasn't updated in STALE_THRESHOLD_MINUTES.
 
     This is the simplest possible anomaly: "this thing has gone quiet."
@@ -70,7 +85,7 @@ def check_stale_entities(ha_client, ollama_client, config, now):
     return issues
 
 
-def check_temperature_anomalies(ha_client, ollama_client, config, now):
+def check_temperature_anomalies(ha_client, ollama_client, store, config, now):
     """Flag temperature readings that fall outside the sensor's own
     historical baseline (or, for sensors with too little history, outside
     a loose fixed sanity range — see jeeves.baselines).
@@ -113,7 +128,7 @@ def check_temperature_anomalies(ha_client, ollama_client, config, now):
     return issues
 
 
-def check_camera_event_rate(ha_client, ollama_client, config, now):
+def check_camera_event_rate(ha_client, ollama_client, store, config, now):
     """Flag motion sensors whose event rate today is way outside their own
     historical norm (5× the rolling daily average).
 
@@ -187,9 +202,104 @@ def _minutes_since(iso_timestamp, now):
     return (now - then).total_seconds() / 60
 
 
+def check_ha_system_health(ha_client, ollama_client, store, config, now):
+    """Three REST-based HA health checks: unavailable entities, pending
+    software updates, and ERROR/CRITICAL lines in the error log.
+
+    All three share a single GET /api/states call for efficiency. Error log
+    tracking uses a byte offset persisted in metadata so Jeeves only
+    processes new content each cycle, resetting on HA restart.
+    """
+    issues = []
+
+    try:
+        all_states = ha_client.get_all_states()
+    except Exception as exc:
+        issues.append(Issue(
+            key="ha_api_unreachable",
+            summary=f"Could not reach Home Assistant API ({exc})",
+        ))
+        return issues
+
+    # Unavailable entities
+    for state in all_states:
+        entity_id = state.get("entity_id", "")
+        domain = entity_id.split(".")[0] if "." in entity_id else ""
+        if domain not in ZOMBIE_DOMAINS:
+            continue
+        if state.get("state") not in ("unavailable", "unknown"):
+            continue
+        last_changed = state.get("last_changed")
+        age_minutes = _minutes_since(last_changed, now) if last_changed else None
+        if age_minutes is None or age_minutes < UNAVAILABLE_GRACE_MINUTES:
+            continue
+        issues.append(Issue(
+            key=f"unavailable:{entity_id}",
+            summary=(
+                f"{entity_id} has been {state['state']} for {int(age_minutes)} minutes"
+            ),
+        ))
+
+    # Pending software updates
+    for state in all_states:
+        entity_id = state.get("entity_id", "")
+        if not entity_id.startswith("update."):
+            continue
+        if state.get("state") != "on":
+            continue
+        attrs = state.get("attributes", {})
+        title = attrs.get("title") or attrs.get("friendly_name") or entity_id
+        installed = attrs.get("installed_version", "?")
+        latest = attrs.get("latest_version", "?")
+        issues.append(Issue(
+            key=f"update_available:{entity_id}",
+            summary=f"{title} update available: {installed} → {latest}",
+        ))
+
+    # Error log — new ERROR/CRITICAL lines since last poll
+    try:
+        ha_start_time = ha_client.get_start_time()
+        log_text = ha_client.get_error_log()
+    except Exception as exc:
+        issues.append(Issue(
+            key="error_log_unreachable",
+            summary=f"Could not read HA error log ({exc})",
+        ))
+        return issues
+
+    if ha_start_time != store.get_meta("ha_start_time"):
+        store.set_meta("ha_start_time", ha_start_time)
+        store.set_meta("error_log_offset", "0")
+
+    offset = int(store.get_meta("error_log_offset", "0"))
+    new_content = log_text[offset:]
+    store.set_meta("error_log_offset", len(log_text))
+
+    # Key errors by logger + date so each logger raises at most one issue
+    # per day — avoids a burst of identical notifications for a noisy component.
+    today = now.date().isoformat()
+    seen = {}
+    for line in new_content.splitlines():
+        m_level = _LOG_LEVEL_RE.match(line)
+        if not m_level:
+            continue
+        m_logger = _LOG_LOGGER_RE.search(line)
+        logger = m_logger.group(1) if m_logger else "unknown"
+        seen[logger] = (m_level.group(1), line.strip())
+
+    for logger, (level, line) in seen.items():
+        issues.append(Issue(
+            key=f"log_error:{logger}:{today}",
+            summary=f"HA log {level} [{logger}]: {line[:200]}",
+        ))
+
+    return issues
+
+
 # Registered watchers, run in order each poll cycle.
 WATCHERS = [
     check_stale_entities,
     check_temperature_anomalies,
     check_camera_event_rate,
+    check_ha_system_health,
 ]

@@ -51,7 +51,7 @@ def run_poll_cycle(ha_client, ollama_client, store, config):
 
     seen_keys = set()
     for watcher in WATCHERS:
-        for issue in watcher(ha_client, ollama_client, config, now):
+        for issue in watcher(ha_client, ollama_client, store, config, now):
             seen_keys.add(issue.key)
             if not store.is_open(issue.key):
                 ha_client.notify(config.notify_target, "Jeeves: issue detected", issue.summary)

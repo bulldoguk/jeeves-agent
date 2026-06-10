@@ -17,6 +17,30 @@ class IssueStore:
             )
             """
         )
+        self.conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS metadata (
+                key TEXT PRIMARY KEY,
+                value TEXT NOT NULL
+            )
+            """
+        )
+        self.conn.commit()
+
+    def get_meta(self, key, default=""):
+        row = self.conn.execute(
+            "SELECT value FROM metadata WHERE key = ?", (key,)
+        ).fetchone()
+        return row[0] if row else default
+
+    def set_meta(self, key, value):
+        self.conn.execute(
+            """
+            INSERT INTO metadata (key, value) VALUES (?, ?)
+            ON CONFLICT(key) DO UPDATE SET value = excluded.value
+            """,
+            (key, str(value)),
+        )
         self.conn.commit()
 
     def is_open(self, key):
