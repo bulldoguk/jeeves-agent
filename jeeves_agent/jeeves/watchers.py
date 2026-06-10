@@ -11,7 +11,8 @@ Adding a new check = write a function and register it below — no changes
 to the poll loop required.
 """
 
-from collections import namedtuple
+from collections import namedtuple, defaultdict
+from datetime import datetime
 
 from jeeves.baselines import derive_baseline, is_anomalous, numeric_values
 
@@ -20,6 +21,8 @@ Issue = namedtuple("Issue", ["key", "summary"])
 TEMPERATURE_STALE_MINUTES = 30
 CAMERA_STALE_MINUTES = 10
 HISTORY_WINDOW_HOURS = 24 * 10  # matches HA's typical default recorder retention
+CAMERA_EVENT_RATE_MULTIPLIER = 5
+MIN_CAMERA_HISTORY_DAYS = 3  # need at least this many past days to trust the average
 
 
 def check_stale_entities(ha_client, ollama_client, config, now):
@@ -110,9 +113,73 @@ def check_temperature_anomalies(ha_client, ollama_client, config, now):
     return issues
 
 
-def _minutes_since(iso_timestamp, now):
-    from datetime import datetime
+def check_camera_event_rate(ha_client, ollama_client, config, now):
+    """Flag motion sensors whose event rate today is way outside their own
+    historical norm (5× the rolling daily average).
 
+    Uses HA history of binary_sensor.*_motion entities. Requires at least
+    MIN_CAMERA_HISTORY_DAYS of past data before flagging — new cameras run
+    silently until their baseline is established.
+
+    Skips cameras whose historical average is zero (never or rarely fires)
+    to avoid false positives on quiet outdoor cameras at night.
+    """
+    issues = []
+    today_key = now.date().isoformat()
+
+    for entity_id in config.watch_camera_motion_entities:
+        try:
+            history = ha_client.get_history(entity_id, hours=HISTORY_WINDOW_HOURS)
+        except Exception as exc:
+            issues.append(
+                Issue(
+                    key=f"unreachable:{entity_id}",
+                    summary=f"Could not read {entity_id} from Home Assistant ({exc})",
+                )
+            )
+            continue
+
+        daily_counts = _count_daily_on_transitions(history)
+        past_counts = {day: count for day, count in daily_counts.items() if day != today_key}
+
+        if len(past_counts) < MIN_CAMERA_HISTORY_DAYS:
+            continue
+
+        avg = sum(past_counts.values()) / len(past_counts)
+        if avg == 0:
+            continue
+
+        today_count = daily_counts.get(today_key, 0)
+        if today_count > avg * CAMERA_EVENT_RATE_MULTIPLIER:
+            issues.append(
+                Issue(
+                    key=f"camera_event_rate:{entity_id}",
+                    summary=(
+                        f"{entity_id} has fired {today_count} motion events today "
+                        f"({avg:.1f} daily average, {CAMERA_EVENT_RATE_MULTIPLIER}× "
+                        f"threshold = {avg * CAMERA_EVENT_RATE_MULTIPLIER:.0f})"
+                    ),
+                )
+            )
+    return issues
+
+
+def _count_daily_on_transitions(history):
+    """Count 'on' state transitions per UTC date from HA history."""
+    counts = defaultdict(int)
+    for state in history:
+        if state.get("state") != "on":
+            continue
+        ts = state.get("last_changed", "")
+        try:
+            dt = datetime.fromisoformat(ts.replace("Z", "+00:00"))
+            counts[dt.date().isoformat()] += 1
+        except ValueError:
+            continue
+    return dict(counts)
+
+
+def _minutes_since(iso_timestamp, now):
     try:
         then = datetime.fromisoformat(iso_timestamp.replace("Z", "+00:00"))
     except ValueError:
@@ -124,4 +191,5 @@ def _minutes_since(iso_timestamp, now):
 WATCHERS = [
     check_stale_entities,
     check_temperature_anomalies,
+    check_camera_event_rate,
 ]
