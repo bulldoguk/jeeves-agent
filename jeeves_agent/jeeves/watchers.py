@@ -24,17 +24,23 @@ CAMERA_STALE_MINUTES = 10
 HISTORY_WINDOW_HOURS = 24 * 10  # matches HA's typical default recorder retention
 CAMERA_EVENT_RATE_MULTIPLIER = 5
 MIN_CAMERA_HISTORY_DAYS = 3  # need at least this many past days to trust the average
-UNAVAILABLE_GRACE_MINUTES = 5
+UNAVAILABLE_GRACE_MINUTES = 15
 
 # Physical device domains where unavailable/unknown signals a real problem.
-# Excludes helpers, automations, scripts, persons, zones, and domains whose
-# default state is unknown until first interaction (button, event).
+# Excludes: helpers (input_*), automations, scripts, persons, zones, buttons/events
+# (default state is unknown until first interaction), and config-value domains
+# (number, text, select) which custom integrations use for settings storage —
+# those going unknown doesn't mean a physical device is offline.
 ZOMBIE_DOMAINS = frozenset([
     "alarm_control_panel", "binary_sensor", "camera", "climate", "cover",
     "device_tracker", "fan", "humidifier", "lawn_mower", "light", "lock",
-    "media_player", "number", "remote", "select", "sensor", "siren",
-    "switch", "text", "vacuum", "valve", "water_heater",
+    "media_player", "remote", "sensor", "siren",
+    "switch", "vacuum", "valve", "water_heater",
 ])
+
+# When this many or more entities from the same apparent source go unavailable
+# at once, collapse them into a single group notification instead of one per entity.
+UNAVAILABLE_GROUP_THRESHOLD = 3
 
 _LOG_LEVEL_RE = re.compile(r"^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2} (ERROR|CRITICAL)")
 _LOG_LOGGER_RE = re.compile(r"\[([^\]]+)\]")
@@ -233,7 +239,12 @@ def check_ha_system_health(ha_client, ollama_client, store, config, now):
         if state_map.get(switch_id.strip()) in ("off", "unavailable"):
             circuit_suppressed.add(entity_id.strip())
 
-    # Unavailable entities
+    # Unavailable entities — grouped by source prefix to avoid per-entity floods.
+    # When many entities share the same name prefix (e.g. "road_glide_", "traverse_"),
+    # they likely belong to the same integration/device; collapsing them into one
+    # issue prevents a single bridge outage from generating hundreds of notifications.
+    unavail_by_prefix: dict[str, list[str]] = defaultdict(list)
+
     for state in all_states:
         entity_id = state.get("entity_id", "")
         domain = entity_id.split(".")[0] if "." in entity_id else ""
@@ -247,12 +258,30 @@ def check_ha_system_health(ha_client, ollama_client, store, config, now):
         age_minutes = _minutes_since(last_changed, now) if last_changed else None
         if age_minutes is None or age_minutes < UNAVAILABLE_GRACE_MINUTES:
             continue
-        issues.append(Issue(
-            key=f"unavailable:{entity_id}",
-            summary=(
-                f"{entity_id} has been {state['state']} for {int(age_minutes)} minutes"
-            ),
-        ))
+        # Derive a grouping prefix: first two underscore-separated words of the
+        # object_id (e.g. "road_glide_oil_change_interval_days" → "road_glide").
+        object_id = entity_id.split(".", 1)[-1] if "." in entity_id else entity_id
+        parts = object_id.split("_")
+        prefix = "_".join(parts[:2]) if len(parts) >= 3 else object_id
+        unavail_by_prefix[prefix].append((entity_id, state.get("state", "unavailable"), int(age_minutes)))
+
+    for prefix, entries in unavail_by_prefix.items():
+        if len(entries) >= UNAVAILABLE_GROUP_THRESHOLD:
+            oldest = max(age for _, _, age in entries)
+            sample = entries[0][0]
+            issues.append(Issue(
+                key=f"unavailable_group:{prefix}",
+                summary=(
+                    f"{len(entries)} entities unavailable (prefix '{prefix}', "
+                    f"e.g. {sample}; oldest {oldest} min)"
+                ),
+            ))
+        else:
+            for entity_id, state_str, age_minutes in entries:
+                issues.append(Issue(
+                    key=f"unavailable:{entity_id}",
+                    summary=f"{entity_id} has been {state_str} for {age_minutes} minutes",
+                ))
 
     # Pending software updates
     for state in all_states:
