@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.3.4
+
+- Fixed temperature anomaly false positives for Fahrenheit installs: the
+  fixed-default fallback range was named `_C` but was raw numbers (-1 to 40),
+  flagging normal °F readings (e.g. 74°F) as anomalous. New range is -50 to
+  150 — unit-agnostic, catches only truly broken sensor values.
+- Lowered `MIN_SAMPLES_FOR_LEARNED_BASELINE` from 50 to 20 so sensors that
+  don't update constantly (e.g. stable-room sensors with low state-change rate)
+  switch to the learned baseline sooner.
+
 ## 0.3.3
 
 - Added HA Repairs monitoring to `check_ha_system_health`: polls

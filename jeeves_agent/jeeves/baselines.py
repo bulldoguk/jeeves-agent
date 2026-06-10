@@ -13,13 +13,15 @@ from statistics import mean, stdev
 
 Baseline = namedtuple("Baseline", ["low", "high", "source"])
 
-MIN_SAMPLES_FOR_LEARNED_BASELINE = 50
+MIN_SAMPLES_FOR_LEARNED_BASELINE = 20
 STD_DEVS_FOR_ANOMALY = 3
 
-# Loose sanity range used when there isn't enough history yet to learn
-# a baseline. Wide on purpose — this is a safety net, not a real check.
-FIXED_DEFAULT_LOW_C = -1.0
-FIXED_DEFAULT_HIGH_C = 40.0
+# Loose sanity range used when there isn't enough history yet to learn a
+# baseline. Unit-agnostic — wide enough to cover normal readings in both
+# °F and °C without false-positives. This is a last-resort safety net only;
+# the learned baseline kicks in once MIN_SAMPLES_FOR_LEARNED_BASELINE is met.
+FIXED_DEFAULT_LOW = -50.0   # below any realistic home sensor in °F or °C
+FIXED_DEFAULT_HIGH = 150.0  # above any realistic home temperature in °F
 
 
 def numeric_values(history):
@@ -49,8 +51,8 @@ def derive_baseline(history):
         )
 
     return Baseline(
-        low=FIXED_DEFAULT_LOW_C,
-        high=FIXED_DEFAULT_HIGH_C,
+        low=FIXED_DEFAULT_LOW,
+        high=FIXED_DEFAULT_HIGH,
         source="fixed-default",
     )
 
