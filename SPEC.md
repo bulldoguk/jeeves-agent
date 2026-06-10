@@ -88,14 +88,28 @@ new check is a small, isolated addition (not a rework of the core loop).
     indoors should be below freezing or above 40°C") until enough history
     accumulates.
 - **Camera anomalies (v1):** two checks —
-  1. Camera goes offline / stops reporting (heartbeat-style check).
-  2. Event rate is way outside that camera's own historical norm (compare
-     against its RustyCam event-log baseline, not a fixed number).
+  1. Camera goes offline / stops reporting — heartbeat check on the
+     camera entity itself (`watch_camera_entities` in config).
+  2. Event rate is way outside that camera's own historical norm — uses
+     HA history of `binary_sensor.*_motion` entities (`watch_camera_motion_entities`
+     in config, configured separately from the camera entities). Counts
+     daily state transitions to `"on"`; flags when today's count exceeds
+     **5× the rolling daily average**. Motion sensor history is used
+     directly — no dependency on RustyCam's SQLite log.
   Tamper/obstruction-pattern detection (frozen frame, sudden permanent
   darkness, etc.) is **not** in v1 — revisit once the above two are
   running and we see what real anomalies look like.
 - **Polling interval: every 5–10 minutes.** Good balance of catching
   issues promptly without hammering the mini PC or Ollama.
+- **Unavailable entity grace period: 5 minutes.** The system health watcher
+  only raises an issue once an entity has been continuously `unavailable` or
+  `unknown` for at least 5 minutes. Uses `first_seen` already stored in
+  IssueStore. Absorbs the brief unavailability flicker that occurs during HA
+  restarts and add-on updates without adding new state.
+- **Stale thresholds split by entity type:** `TEMPERATURE_STALE_MINUTES = 30`,
+  `CAMERA_STALE_MINUTES = 10`. Motion binary sensors (`watch_camera_motion_entities`)
+  are excluded from the stale check — silence on a motion sensor is normal
+  (no motion); the camera entity stale check already covers "is this camera alive."
 - **Issue tracking: local SQLite**, mirroring RustyCam's event-log
   pattern — persisted under `/share/jeeves_agent/`, easy to inspect,
   consistent with the existing add-ons.
@@ -105,15 +119,58 @@ new check is a small, isolated addition (not a rework of the core loop).
   setup, and keeps risk low even if the token leaks or the agent
   misbehaves).
 
+## Decisions (from interview, 2026-06-10)
+
+- **Tier 2 (Ollama) is Phase 1**, not deferred. Watchers that need
+  judgment call `ollama_client` directly — the poll loop stays unchanged.
+  See ADR 0004.
+- **Ollama client: raw `requests`**, no `ollama` library. Lives in
+  `jeeves/ollama_client.py`. URL is configurable via `OLLAMA_URL` env var.
+  **Ollama is optional:** if `OLLAMA_URL` is not set, `ollama_client` is
+  `None`, watchers skip their Tier 2 judgment calls silently, and no
+  "Tier 2 unavailable" issue is raised. Jeeves runs as Tier 1-only until
+  Ollama is reachable. When the brain server is ready, setting `OLLAMA_URL`
+  activates Tier 2 with no code changes. "Tier 2 unavailable" is only
+  raised when Ollama is configured but unreachable (i.e. something broken,
+  not intentionally absent).
+- **Ollama unavailable → raise a `jeeves_tier2_unavailable` issue** rather
+  than silently skipping judgment calls or flooding Gary with false
+  positives. One notification that Tier 2 is offline; clears when it
+  comes back.
+- **Camera config split:** `watch_camera_entities` (camera entities, for
+  stale/offline check) and `watch_camera_motion_entities` (motion binary
+  sensors, for event-rate check) are separate config keys. Entity naming
+  is not reliably derivable by convention (e.g. `front_door_ptz` maps to
+  "Garage ptz" in HA).
+- **HA system health watcher — v1 scope (REST only, three checks):**
+  1. Unavailable entities — `GET /api/states` filtered to physical device
+     domains (sensor, binary_sensor, camera, etc.) in `unavailable` or
+     `unknown` state beyond a grace period.
+  2. Software updates — `GET /api/states` filtered to `update` domain,
+     state `"on"` = update available.
+  3. Error log — `GET /api/error_log` for `ERROR`/`CRITICAL` lines.
+  Integration config-entry states and Repairs require WebSocket and are
+  not in v1. Integration failures surface as unavailable entities anyway.
+  HAGHS (home-assistant-global-health-score) was evaluated as a data
+  source but rejected — it exposes a single sensor blob rather than clean
+  per-issue signals, and coupling Jeeves to another add-on's availability
+  is the wrong shape for a monitoring agent.
+- **Error log tracking:** store the character offset of the last processed
+  position in SQLite. On each poll, also fetch `GET /api/` to check HA's
+  `start_time` — if HA restarted since last poll, reset offset to 0 so
+  post-restart errors are never missed.
+
 ## Remaining open questions
 
-- [ ] Minimum history threshold for a *new/sparse* sensor to switch from
-      the fixed-default fallback to a learned baseline (e.g. minimum N
-      readings or M days) — most sensors won't hit this path since HA
-      already retains history, but new entities will.
-- [ ] Exact "way outside historical norm" threshold for camera event
-      rate — needs real RustyCam history to calibrate against (e.g. is
-      3x the daily average too sensitive? 5x?).
+- [x] Minimum history threshold for a *new/sparse* sensor to switch from
+      the fixed-default fallback to a learned baseline — **50 samples**
+      (already implemented in `jeeves/baselines.py`). Most sensors won't
+      hit this path since HA already retains history.
+- [x] Camera event rate threshold — **5× rolling daily average** of
+      motion sensor state transitions, using HA history of
+      `binary_sensor.*_motion` entities (not RustyCam's SQLite log).
+      Configured as a tuneable value; adjust if 5× proves too sensitive
+      or too loose in practice.
 
 ## Explicitly deferred to later phases
 

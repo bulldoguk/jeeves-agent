@@ -15,3 +15,5 @@ ADR.
 | [0001](0001-local-only-architecture.md) | Run Jeeves fully locally (no Claude API in the loop) |
 | [0002](0002-sqlite-issue-tracking.md) | Track open issues in local SQLite |
 | [0003](0003-learned-temperature-baselines.md) | Derive temperature baselines from HA history, not fixed config |
+| [0004](0004-tier2-ollama-in-watchers.md) | Tier 2 judgment calls happen inside watchers, not in the poll loop |
+| [0005](0005-ha-system-health-rest-only.md) | HA system health watcher uses REST only — no WebSocket in v1 |
