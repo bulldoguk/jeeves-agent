@@ -1,5 +1,5 @@
 name: "Jeeves Agent"
-version: "0.2.0"
+version: "0.3.0"
 slug: "jeeves_agent"
 description: "Local Home Assistant monitoring agent — watches for anomalies (temperatures, cameras, system health, updates) and raises notifications"
 url: "https://github.com/bulldoguk/jeeves-agent"
@@ -13,21 +13,24 @@ options:
   ha_token: ""
   notify_target: "notify.notify"
   poll_interval_minutes: 5
-  ollama_host: "http://localhost:11434"
-  ollama_model: "llama3.1"
+  ollama_url: ""
+  ollama_model: "llama3.2"
   watch_temperature_entities: []
   watch_camera_entities: []
+  watch_camera_motion_entities: []
 
 schema:
   ha_url: str
   ha_token: password
   notify_target: str
   poll_interval_minutes: int(1,60)
-  ollama_host: str
+  ollama_url: str
   ollama_model: str
   watch_temperature_entities:
     - str
   watch_camera_entities:
+    - str
+  watch_camera_motion_entities:
     - str
 
 map:

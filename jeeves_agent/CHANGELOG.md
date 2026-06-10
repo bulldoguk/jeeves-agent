@@ -1,5 +1,24 @@
 # Changelog
 
+## 0.3.0
+
+- Added `check_camera_event_rate`: counts daily motion events on
+  `binary_sensor.*_motion` entities and flags when today's count exceeds
+  5× the rolling daily average. Requires 3 days of history before flagging;
+  skips cameras whose historical average is zero.
+- Added `check_ha_system_health`: three REST-based checks each poll cycle —
+  unavailable/unknown entities (5-minute grace period), pending software
+  updates (`update.*` entities with state `"on"`), and new ERROR/CRITICAL
+  lines in the HA error log. Error log tracking uses a byte offset persisted
+  in SQLite, resetting automatically on HA restart.
+- Added Ollama client (`jeeves/ollama_client.py`) for future Tier 2 judgment
+  calls. Activated by setting `OLLAMA_URL`; runs as Tier 1-only when absent.
+- New config options: `watch_camera_motion_entities`, `ollama_url`
+  (renamed from `ollama_host`), `ollama_model` (default `llama3.2`).
+- Fixed `get_history` — the `hours` parameter was accepted but never passed
+  to the HA API, so all history calls were silently returning ~24h.
+- Stale check thresholds split: temperature sensors 30 min, cameras 10 min.
+
 ## 0.2.0
 
 - Added temperature anomaly watcher (`jeeves/baselines.py` +
