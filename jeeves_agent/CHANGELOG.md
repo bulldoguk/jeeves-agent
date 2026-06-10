@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.3.2
+
+- Fix first-run notification flood: on first start (or after HA restarts),
+  Jeeves now skips existing error log content and only watches for new
+  errors going forward. Previously it processed the entire log history on
+  first poll, generating a burst of notifications for pre-existing errors.
+
 ## 0.3.1
 
 - Persistent notifications: issues now create a persistent notification in

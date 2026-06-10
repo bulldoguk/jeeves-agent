@@ -267,9 +267,13 @@ def check_ha_system_health(ha_client, ollama_client, store, config, now):
         ))
         return issues
 
-    if ha_start_time != store.get_meta("ha_start_time"):
+    first_run = store.get_meta("ha_start_time") == ""
+    if first_run or ha_start_time != store.get_meta("ha_start_time"):
         store.set_meta("ha_start_time", ha_start_time)
-        store.set_meta("error_log_offset", "0")
+        # On first run or HA restart, skip existing log content — only watch
+        # for new errors from this point forward.
+        store.set_meta("error_log_offset", len(log_text))
+        return issues
 
     offset = int(store.get_meta("error_log_offset", "0"))
     new_content = log_text[offset:]
