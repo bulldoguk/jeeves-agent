@@ -1,5 +1,5 @@
 name: "Jeeves Agent"
-version: "0.3.2"
+version: "0.3.3"
 slug: "jeeves_agent"
 description: "Local Home Assistant monitoring agent — watches for anomalies (temperatures, cameras, system health, updates) and raises notifications"
 url: "https://github.com/bulldoguk/jeeves-agent"
