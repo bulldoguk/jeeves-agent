@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.3.3
+
+- Added HA Repairs monitoring to `check_ha_system_health`: polls
+  `/api/repairs/issues` each cycle and raises an issue for any active
+  (non-ignored, non-dismissed) repair. Resolves automatically when
+  the repair is cleared.
+
 ## 0.3.2
 
 - Fix first-run notification flood: on first start (or after HA restarts),

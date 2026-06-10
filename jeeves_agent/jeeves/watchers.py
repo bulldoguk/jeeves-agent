@@ -256,6 +256,28 @@ def check_ha_system_health(ha_client, ollama_client, store, config, now):
             summary=f"{title} update available: {installed} → {latest}",
         ))
 
+    # HA Repairs
+    try:
+        repairs = ha_client.get_repairs()
+    except Exception as exc:
+        issues.append(Issue(
+            key="repairs_unreachable",
+            summary=f"Could not read HA repairs ({exc})",
+        ))
+        repairs = []
+
+    for repair in repairs:
+        if repair.get("ignored") or repair.get("dismissed_version"):
+            continue
+        issue_id = repair.get("issue_id", "unknown")
+        domain = repair.get("domain", "")
+        severity = repair.get("severity", "warning")
+        translation_key = repair.get("translation_key") or issue_id
+        issues.append(Issue(
+            key=f"repair:{domain}:{issue_id}",
+            summary=f"HA repair [{severity}] {domain}: {translation_key}",
+        ))
+
     # Error log — new ERROR/CRITICAL lines since last poll
     try:
         ha_start_time = ha_client.get_start_time()
