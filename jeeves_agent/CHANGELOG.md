@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.3.9
+
+- Added humidity tracking: new `watch_humidity_entities` config option enables
+  stale detection (90 min threshold) and learned-baseline anomaly detection for
+  humidity sensors, using the same approach as temperature.
+
 ## 0.3.8
 
 - Raised `TEMPERATURE_STALE_MINUTES` from 30 to 90. Many Zigbee/ESPHome

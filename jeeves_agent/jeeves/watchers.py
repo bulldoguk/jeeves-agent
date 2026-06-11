@@ -20,6 +20,7 @@ from jeeves.baselines import derive_baseline, is_anomalous, numeric_values
 Issue = namedtuple("Issue", ["key", "summary"])
 
 TEMPERATURE_STALE_MINUTES = 90
+HUMIDITY_STALE_MINUTES = 90
 CAMERA_STALE_MINUTES = 10
 HISTORY_WINDOW_HOURS = 24 * 10  # matches HA's typical default recorder retention
 CAMERA_EVENT_RATE_MULTIPLIER = 5
@@ -57,6 +58,7 @@ def check_stale_entities(ha_client, ollama_client, store, config, now):
     issues = []
     checks = [
         (config.watch_temperature_entities, TEMPERATURE_STALE_MINUTES),
+        (config.watch_humidity_entities, HUMIDITY_STALE_MINUTES),
         (config.watch_camera_entities, CAMERA_STALE_MINUTES),
     ]
     for entities, threshold in checks:
@@ -127,6 +129,42 @@ def check_temperature_anomalies(ha_client, ollama_client, store, config, now):
                     summary=(
                         f"{entity_id} reading {current_value:g} is outside its "
                         f"normal range ({baseline.low:.1f}–{baseline.high:.1f}, "
+                        f"{baseline.source} baseline)"
+                    ),
+                )
+            )
+    return issues
+
+
+def check_humidity_anomalies(ha_client, ollama_client, store, config, now):
+    """Flag humidity readings outside each sensor's own historical baseline."""
+    issues = []
+    for entity_id in config.watch_humidity_entities:
+        try:
+            history = ha_client.get_history(entity_id, hours=HISTORY_WINDOW_HOURS)
+            current_state = ha_client.get_state(entity_id)
+        except Exception as exc:
+            issues.append(
+                Issue(
+                    key=f"unreachable:{entity_id}",
+                    summary=f"Could not read {entity_id} from Home Assistant ({exc})",
+                )
+            )
+            continue
+
+        values = numeric_values(current_state and [current_state] or [])
+        if not values:
+            continue
+        current_value = values[0]
+
+        baseline = derive_baseline(history)
+        if is_anomalous(current_value, baseline):
+            issues.append(
+                Issue(
+                    key=f"humidity_anomaly:{entity_id}",
+                    summary=(
+                        f"{entity_id} reading {current_value:g}% is outside its "
+                        f"normal range ({baseline.low:.1f}–{baseline.high:.1f}%, "
                         f"{baseline.source} baseline)"
                     ),
                 )
@@ -369,6 +407,7 @@ def check_ha_system_health(ha_client, ollama_client, store, config, now):
 WATCHERS = [
     check_stale_entities,
     check_temperature_anomalies,
+    check_humidity_anomalies,
     check_camera_event_rate,
     check_ha_system_health,
 ]
