@@ -16,6 +16,7 @@ class Config:
     notify_target: str
     poll_interval_minutes: int
     watch_temperature_entities: list = field(default_factory=list)
+    watch_humidity_entities: list = field(default_factory=list)
     watch_camera_entities: list = field(default_factory=list)
     watch_camera_motion_entities: list = field(default_factory=list)
     circuit_switches: list = field(default_factory=list)
@@ -34,6 +35,9 @@ def load_config():
         poll_interval_minutes=int(os.environ.get("POLL_INTERVAL_MINUTES", "5")),
         watch_temperature_entities=split_entities(
             os.environ.get("WATCH_TEMPERATURE_ENTITIES", "")
+        ),
+        watch_humidity_entities=split_entities(
+            os.environ.get("WATCH_HUMIDITY_ENTITIES", "")
         ),
         watch_camera_entities=split_entities(
             os.environ.get("WATCH_CAMERA_ENTITIES", "")
