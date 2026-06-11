@@ -19,7 +19,7 @@ from jeeves.baselines import derive_baseline, is_anomalous, numeric_values
 
 Issue = namedtuple("Issue", ["key", "summary"])
 
-TEMPERATURE_STALE_MINUTES = 30
+TEMPERATURE_STALE_MINUTES = 90
 CAMERA_STALE_MINUTES = 10
 HISTORY_WINDOW_HOURS = 24 * 10  # matches HA's typical default recorder retention
 CAMERA_EVENT_RATE_MULTIPLIER = 5
