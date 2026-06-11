@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.3.8
+
+- Raised `TEMPERATURE_STALE_MINUTES` from 30 to 90. Many Zigbee/ESPHome
+  temperature sensors report on a ~60-minute cycle; the 30-minute threshold
+  was generating false-stale alerts on every cycle for these devices.
+
 ## 0.3.4
 
 - Fixed temperature anomaly false positives for Fahrenheit installs: the
