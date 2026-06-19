@@ -36,7 +36,7 @@ jobs:
         uses: home-assistant/builder@master
         with:
           args: |
-            --all \
+            --amd64 --aarch64 \
             --target /data/jeeves_agent \
             --generic ${{ steps.info.outputs.version }} \
             --docker-hub ghcr.io/bulldoguk
