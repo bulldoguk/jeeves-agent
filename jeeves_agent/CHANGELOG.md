@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.3.11
+
+- Switched to a prebuilt multi-arch image (`ghcr.io/bulldoguk/{arch}-addon-jeeves_agent`)
+  published via GitHub Actions on push to `main`, instead of building locally
+  on the HA box via the deprecated `build.yaml` flow. Fixes a backup-export
+  edge case where a same-day local rebuild caused the automatic backup to
+  flag this add-on as failed (`automatic_backup_failed_addons` repair), and
+  is a prerequisite for ever publishing this add-on for others to install.
+
 ## 0.3.10
 
 - Fixed `run.sh`: `watch_humidity_entities` and `circuit_switches` config

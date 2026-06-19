@@ -1,8 +1,9 @@
 name: "Jeeves Agent"
-version: "0.3.10"
+version: "0.3.11"
 slug: "jeeves_agent"
 description: "Local Home Assistant monitoring agent — watches for anomalies (temperatures, cameras, system health, updates) and raises notifications"
 url: "https://github.com/bulldoguk/jeeves-agent"
+image: "ghcr.io/bulldoguk/{arch}-addon-jeeves_agent"
 arch:
   - aarch64
   - amd64
