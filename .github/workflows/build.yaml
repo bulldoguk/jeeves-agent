@@ -36,6 +36,6 @@ jobs:
         uses: home-assistant/builder@master
         with:
           args: |
-            --target /github/workspace/jeeves_agent \
+            --target /data/jeeves_agent \
             --generic ${{ steps.info.outputs.version }} \
             --docker-hub ghcr.io/bulldoguk
