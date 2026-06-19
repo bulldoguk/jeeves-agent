@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.3.10
+
+- Fixed `run.sh`: `watch_humidity_entities` and `circuit_switches` config
+  options were never exported as env vars, so `entrypoint.py` always fell
+  back to empty lists regardless of what was configured in the add-on UI.
+  Humidity tracking (added in 0.3.9) and circuit-switch suppression (added
+  in 0.3.5) have been silently inert since they were introduced.
+
 ## 0.3.9
 
 - Added humidity tracking: new `watch_humidity_entities` config option enables

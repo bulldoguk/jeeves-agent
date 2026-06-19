@@ -9,6 +9,8 @@ export OLLAMA_MODEL=$(bashio::config 'ollama_model')
 export WATCH_TEMPERATURE_ENTITIES=$(bashio::config 'watch_temperature_entities | join(",")')
 export WATCH_CAMERA_ENTITIES=$(bashio::config 'watch_camera_entities | join(",")')
 export WATCH_CAMERA_MOTION_ENTITIES=$(bashio::config 'watch_camera_motion_entities | join(",")')
+export WATCH_HUMIDITY_ENTITIES=$(bashio::config 'watch_humidity_entities | join(",")')
+export CIRCUIT_SWITCHES=$(bashio::config 'circuit_switches | join(",")')
 
 export DATA_DIR=/share/jeeves_agent
 mkdir -p "${DATA_DIR}"
