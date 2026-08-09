@@ -1,5 +1,9 @@
 # Jeeves Agent — Home Assistant Add-on
 
+Add-on package for [[projects/jeeves-agent/CLAUDE|jeeves-agent]] — see
+[[projects/jeeves-agent/SPEC|SPEC.md]] for the full spec and
+[[projects/jeeves-agent/jeeves_agent/CHANGELOG|CHANGELOG.md]] for version history.
+
 A local monitoring agent for Home Assistant. Watches for anomalous
 behavior (temperatures, camera activity, system health, available
 updates) and raises HA notifications when something looks off.

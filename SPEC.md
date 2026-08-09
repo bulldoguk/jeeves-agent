@@ -1,5 +1,10 @@
 # Jeeves Agent — Spec (v0.1, draft)
 
+Part of [[projects/jeeves-agent/CLAUDE|jeeves-agent]]. See also
+[[projects/jeeves-agent/CONTEXT|CONTEXT.md]] for terminology and
+[[projects/jeeves-agent/decisions/README|decisions/]] for ADRs on calls big enough to
+warrant their own record.
+
 > Repo: https://github.com/bulldoguk/jeeves-agent — v0.2.0 pushed: connects
 > to HA, polls watched entities for staleness, flags temperature readings
 > outside their own history-derived baseline, tracks open issues in SQLite,
@@ -68,8 +73,8 @@ new check is a small, isolated addition (not a rework of the core loop).
 
 ## Deployment
 
-- Mirrors the pattern already used for RustyCam / Forex Trader: package
-  as an HA add-on (or a standalone service if it ends up living off-box),
+- Mirrors the pattern already used for [[projects/rustycam/CLAUDE|RustyCam]] /
+  [[projects/forex/CLAUDE|Forex Trader]]: package as an HA add-on (or a standalone service if it ends up living off-box),
   config via the HA add-on config UI, logs/state persisted under
   `/share/jeeves_agent/`.
 
@@ -123,7 +128,7 @@ new check is a small, isolated addition (not a rework of the core loop).
 
 - **Tier 2 (Ollama) is Phase 1**, not deferred. Watchers that need
   judgment call `ollama_client` directly — the poll loop stays unchanged.
-  See ADR 0004.
+  See [[projects/jeeves-agent/decisions/0004-tier2-ollama-in-watchers|ADR 0004]].
 - **Ollama client: raw `requests`**, no `ollama` library. Lives in
   `jeeves/ollama_client.py`. URL is configurable via `OLLAMA_URL` env var.
   **Ollama is optional:** if `OLLAMA_URL` is not set, `ollama_client` is
@@ -179,3 +184,6 @@ new check is a small, isolated addition (not a rework of the core loop).
 - Escalation to Claude for harder judgment calls (cost-gated — revisit
   once Phase 1 shows what volume of "hard" cases actually shows up).
 - Running off the HA mini PC on separate hardware.
+- Make staleness thresholds (`temperature_stale_minutes`, `camera_stale_minutes`)
+  configurable in the add-on options schema, so they can be tuned from the HA UI
+  without a code push. Currently hardcoded constants in `watchers.py`.

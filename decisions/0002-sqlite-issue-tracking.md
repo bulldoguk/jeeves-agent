@@ -17,7 +17,7 @@ updates.
 ## Decision
 Track open issues in a local SQLite database (`IssueStore` in
 `jeeves/store.py`), persisted under `/share/jeeves_agent/jeeves.db` —
-mirroring the pattern RustyCam already uses for its event log.
+mirroring the pattern [[projects/rustycam/CLAUDE|RustyCam]] already uses for its event log.
 
 ## Consequences
 - Consistent with the existing add-ons (RustyCam) — same persistence

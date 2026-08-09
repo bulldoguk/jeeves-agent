@@ -38,3 +38,13 @@ onto separate hardware later without rework.
   genuinely "hard" cases the local tiers actually surface — if it's rare,
   occasional Claude calls become affordable; if it's frequent, the cost
   case weakens again.
+
+## Revisit trigger (2026-06-17)
+Gary is now considering a fast local GPU box (Qwen3-class 7-14B model on
+an RTX 5060/5070 Ti) that handles routine HA voice/brain queries locally
+and escalates anything it can't handle to the Claude API — see HA tracker
+idea #0153 for the hardware/model research. This is the "hybrid"
+alternative above, not yet decided. When that hardware is actually built,
+come back to this ADR and either supersede it or amend the decision —
+the explicit ask is to keep real cost control (occasional/bounded Claude
+calls, not unbounded per-poll usage), not abandon it.

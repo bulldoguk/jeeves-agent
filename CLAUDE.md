@@ -21,9 +21,12 @@ raises HA notifications when something looks off. Runs fully local
 cost. Auto-remediation of issues/updates is a planned later phase, once
 the watcher itself is proven reliable.
 
-See [SPEC.md](SPEC.md) for the working spec, and [decisions/](decisions/)
-for ADRs on significant architecture calls (local-only, SQLite issue
-tracking, learned temperature baselines, etc.).
+See [[projects/jeeves-agent/SPEC|SPEC.md]] for the working spec,
+[[projects/jeeves-agent/CONTEXT|CONTEXT.md]] for the domain glossary, and
+[[projects/jeeves-agent/decisions/README|decisions/]] for ADRs on significant architecture
+calls (local-only, SQLite issue tracking, learned temperature baselines, etc.).
+Add-on-specific docs: [[projects/jeeves-agent/jeeves_agent/README|jeeves_agent/README.md]],
+[[projects/jeeves-agent/jeeves_agent/CHANGELOG|jeeves_agent/CHANGELOG.md]].
 
 ## Deployment
 - HA add-on slug: `33b61970_jeeves_agent`
@@ -42,8 +45,8 @@ tracking, learned temperature baselines, etc.).
 - `local_zigbee2mqtt2` add-on is intentionally in error/stopped state — do not investigate or try to fix it
 
 ## Notes
-- Sibling HA add-ons for reference/patterns: RustyCam (projects/rustycam),
-  Forex Trader (projects/forex/ha-addon).
+- Sibling HA add-ons for reference/patterns: [[projects/rustycam/CLAUDE|RustyCam]],
+  [[projects/forex/CLAUDE|Forex Trader]] (ha-addon subfolder).
 - May eventually move off the HA mini PC onto separate hardware — keep
   the design portable (config-driven HA connection, not sandbox-coupled).
 - Tier 2 / Ollama deferred until brain server hardware is available.

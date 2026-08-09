@@ -1,6 +1,8 @@
 # Jeeves Agent — Domain Glossary
 
-Terms used in this project. Implementation details and decisions belong in SPEC.md and decisions/ — not here.
+Terms used in [[projects/jeeves-agent/CLAUDE|jeeves-agent]]. Implementation details and
+decisions belong in [[projects/jeeves-agent/SPEC|SPEC.md]] and
+[[projects/jeeves-agent/decisions/README|decisions/]] — not here.
 
 ---
 
