@@ -1,5 +1,8 @@
 # Changelog
 
+Part of [[projects/jeeves-agent/CLAUDE|jeeves-agent]]. See
+[[projects/jeeves-agent/jeeves_agent/README|jeeves_agent/README.md]] for the add-on overview.
+
 ## 0.3.11
 
 - Switched to a prebuilt multi-arch image (`ghcr.io/bulldoguk/{arch}-addon-jeeves_agent`)
@@ -98,4 +101,4 @@
   and raises/clears notifications via the configured `notify` service.
 - This is a walking skeleton — temperature-baseline learning, camera
   event-rate comparison, system-health, and update checks are not yet
-  implemented (see SPEC.md in the project knowledge base).
+  implemented (see [[projects/jeeves-agent/SPEC|SPEC.md]] in the project knowledge base).
