@@ -50,3 +50,4 @@ Add-on-specific docs: [[projects/jeeves-agent/jeeves_agent/README|jeeves_agent/R
 - May eventually move off the HA mini PC onto separate hardware — keep
   the design portable (config-driven HA connection, not sandbox-coupled).
 - Tier 2 / Ollama deferred until brain server hardware is available.
+- **Planned consumer:** Jeeves is meant to become one producer on the self-hosted [[projects/agent-messaging/CLAUDE|agent-messaging]] bus (idea, 2026-10-11). The switched-circuit false alarms have to be fixed first.
