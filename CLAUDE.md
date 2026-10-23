@@ -3,7 +3,7 @@
 type: coding
 
 ## Status
-Live — v0.4.0 running in HA
+Live — v0.4.1 running in HA
 
 ## Repo
 - Local path: ~/Documents/Claude/projects/jeeves-agent

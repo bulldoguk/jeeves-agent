@@ -22,11 +22,13 @@ class HomeAssistantClient:
         return resp.json()
 
     def get_history(self, entity_id, hours=24):
-        start = datetime.now(timezone.utc) - timedelta(hours=hours)
+        now = datetime.now(timezone.utc)
+        start = now - timedelta(hours=hours)
         resp = requests.get(
             f"{self.base_url}/api/history/period/{start.isoformat()}",
             headers=self.headers,
-            params={"filter_entity_id": entity_id},
+            # Without end_time HA returns only the first day after start.
+            params={"filter_entity_id": entity_id, "end_time": now.isoformat()},
             timeout=30,
         )
         resp.raise_for_status()
