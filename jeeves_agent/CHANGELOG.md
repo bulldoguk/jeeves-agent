@@ -3,6 +3,19 @@
 Part of [[projects/jeeves-agent/CLAUDE|jeeves-agent]]. See
 [[projects/jeeves-agent/jeeves_agent/README|jeeves_agent/README.md]] for the add-on overview.
 
+## 0.3.12
+
+- Fixed the restart re-flood: an HA restart resets `last_changed` on entities
+  that were already unavailable, so they fell back under the 15-minute grace
+  period. Jeeves closed every one of those issues and reopened them as new
+  notifications about 15 minutes later (110 at once on 2026-10-19). An entity
+  whose issue, or group issue, is already open now stays open through the
+  grace period.
+- Removed the HA Repairs and error-log checks. HA 2026.10 serves neither over
+  REST (`/api/repairs/issues` and `/api/error_log` both return 404), so they
+  had only ever raised two permanent "unreachable" issues. Both move to the
+  brain-box triage agent, which uses the WebSocket API (see ADR 0005).
+
 ## 0.3.11
 
 - Switched to a prebuilt multi-arch image (`ghcr.io/bulldoguk/{arch}-addon-jeeves_agent`)

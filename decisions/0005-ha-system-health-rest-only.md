@@ -6,3 +6,7 @@ Jeeves needs to detect unhealthy HA states: unavailable entities, pending softwa
 
 - **HAGHS (home-assistant-global-health-score) as a data source** — rejected: HAGHS is a custom integration that runs inside HA and exposes a single sensor entity with all health data packed into `extra_state_attributes`. Jeeves would need to parse attribute blobs and depend on HAGHS being installed and healthy — the wrong shape for a monitoring agent. HAGHS is worth installing separately as a health dashboard, but not as a Jeeves dependency.
 - **WebSocket client for config-entry states and Repairs** — not rejected, deferred. Revisit once Phase 1 is running and we can see whether missed integration failures (that don't surface as unavailable entities) are a real gap.
+
+## Update 2026-10-23
+
+The error-log endpoint went too: HA 2026.10 returns 404 for `/api/error_log`, and `/api/repairs/issues` (added in v0.3.3) never existed over REST. Jeeves v0.3.12 removes both checks and stays REST-only. Error-log and Repairs monitoring move to the triage agent on the brain box, which speaks WebSocket. That keeps this decision intact for Jeeves while closing the gap the deferred option described.
