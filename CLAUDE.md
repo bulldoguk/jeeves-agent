@@ -3,7 +3,7 @@
 type: coding
 
 ## Status
-Live — v0.3.12 running in HA
+Live — v0.4.0 running in HA
 
 ## Repo
 - Local path: ~/Documents/Claude/projects/jeeves-agent
@@ -41,7 +41,7 @@ Add-on-specific docs: [[projects/jeeves-agent/jeeves_agent/README|jeeves_agent/R
 - `TEMPERATURE_STALE_MINUTES = 90` (raised from 30 in v0.3.8 — many Zigbee/ESPHome sensors report on ~60 min cycles)
 - `UNAVAILABLE_GRACE_MINUTES = 15` (raised from 5 to absorb Zigbee flaps)
 - Unavailable entities are grouped by two-word name prefix when 3+ share the same prefix — prevents a bridge outage from generating hundreds of individual notifications
-- Mobile push notifications are **disabled** — Jeeves writes/dismisses HA persistent notifications only, until signal quality is confirmed
+- Mobile push notifications are **disabled**. Jeeves writes and dismisses HA persistent notifications (`persistent_notifications` option) and, from v0.4.0, posts every open and close to the Matrix `#jeeves-raw` room as `@jeeves`. The brain-box triage agent filters that feed into `#house`; see [[projects/agent-messaging/CLAUDE|agent-messaging]].
 - `local_zigbee2mqtt2` add-on is intentionally in error/stopped state — do not investigate or try to fix it
 
 ## Notes

@@ -1,5 +1,5 @@
 name: "Jeeves Agent"
-version: "0.3.12"
+version: "0.4.0"
 slug: "jeeves_agent"
 description: "Local Home Assistant monitoring agent — watches for anomalies (temperatures, cameras, system health, updates) and raises notifications"
 url: "https://github.com/bulldoguk/jeeves-agent"
@@ -21,6 +21,10 @@ options:
   watch_camera_entities: []
   watch_camera_motion_entities: []
   circuit_switches: []
+  matrix_homeserver: ""
+  matrix_token: ""
+  matrix_room: ""
+  persistent_notifications: true
 
 schema:
   ha_url: str
@@ -39,6 +43,10 @@ schema:
     - str
   circuit_switches:
     - str
+  matrix_homeserver: str?
+  matrix_token: password?
+  matrix_room: str?
+  persistent_notifications: bool
 
 map:
   - share:rw

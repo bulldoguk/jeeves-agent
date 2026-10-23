@@ -3,6 +3,17 @@
 Part of [[projects/jeeves-agent/CLAUDE|jeeves-agent]]. See
 [[projects/jeeves-agent/jeeves_agent/README|jeeves_agent/README.md]] for the add-on overview.
 
+## 0.4.0
+
+- Jeeves posts every issue open and close to a Matrix room, the raw feed for
+  the brain-box triage agent on the [[projects/agent-messaging/CLAUDE|agent-messaging]]
+  bus. New options: `matrix_homeserver`, `matrix_token`, `matrix_room`. Each post
+  carries a machine-readable `org.myhmbiz.agent` payload (`source`, `event`, `key`,
+  `summary`). Matrix is best effort: a failed post is logged and never blocks
+  issue tracking.
+- New `persistent_notifications` option (default `true`). Turn it off once the
+  triage agent's `#house` alerts are trusted, which ends the HA notification flood.
+
 ## 0.3.12
 
 - Fixed the restart re-flood: an HA restart resets `last_changed` on entities
