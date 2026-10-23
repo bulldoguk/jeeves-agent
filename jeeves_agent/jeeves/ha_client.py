@@ -42,33 +42,6 @@ class HomeAssistantClient:
         resp.raise_for_status()
         return resp.json()
 
-    def get_error_log(self):
-        resp = requests.get(
-            f"{self.base_url}/api/error_log",
-            headers=self.headers,
-            timeout=30,
-        )
-        resp.raise_for_status()
-        return resp.text
-
-    def get_start_time(self):
-        resp = requests.get(
-            f"{self.base_url}/api/",
-            headers=self.headers,
-            timeout=10,
-        )
-        resp.raise_for_status()
-        return resp.json().get("start_time", "")
-
-    def get_repairs(self):
-        resp = requests.get(
-            f"{self.base_url}/api/repairs/issues",
-            headers=self.headers,
-            timeout=10,
-        )
-        resp.raise_for_status()
-        return resp.json().get("issues", [])
-
     def create_persistent_notification(self, notification_id, title, message):
         resp = requests.post(
             f"{self.base_url}/api/services/persistent_notification/create",

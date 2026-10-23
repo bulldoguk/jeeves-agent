@@ -11,7 +11,6 @@ Adding a new check = write a function and register it below — no changes
 to the poll loop required.
 """
 
-import re
 from collections import namedtuple, defaultdict
 from datetime import datetime
 
@@ -42,9 +41,6 @@ ZOMBIE_DOMAINS = frozenset([
 # When this many or more entities from the same apparent source go unavailable
 # at once, collapse them into a single group notification instead of one per entity.
 UNAVAILABLE_GROUP_THRESHOLD = 3
-
-_LOG_LEVEL_RE = re.compile(r"^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2} (ERROR|CRITICAL)")
-_LOG_LOGGER_RE = re.compile(r"\[([^\]]+)\]")
 
 
 def check_stale_entities(ha_client, ollama_client, store, config, now):
@@ -247,12 +243,8 @@ def _minutes_since(iso_timestamp, now):
 
 
 def check_ha_system_health(ha_client, ollama_client, store, config, now):
-    """Three REST-based HA health checks: unavailable entities, pending
-    software updates, and ERROR/CRITICAL lines in the error log.
-
-    All three share a single GET /api/states call for efficiency. Error log
-    tracking uses a byte offset persisted in metadata so Jeeves only
-    processes new content each cycle, resetting on HA restart.
+    """Two REST-based HA health checks: unavailable entities and pending
+    software updates. Both share a single GET /api/states call.
     """
     issues = []
 
@@ -292,15 +284,24 @@ def check_ha_system_health(ha_client, ollama_client, store, config, now):
             continue
         if entity_id in circuit_suppressed:
             continue
-        last_changed = state.get("last_changed")
-        age_minutes = _minutes_since(last_changed, now) if last_changed else None
-        if age_minutes is None or age_minutes < UNAVAILABLE_GRACE_MINUTES:
-            continue
         # Derive a grouping prefix: first two underscore-separated words of the
         # object_id (e.g. "road_glide_oil_change_interval_days" → "road_glide").
         object_id = entity_id.split(".", 1)[-1] if "." in entity_id else entity_id
         parts = object_id.split("_")
         prefix = "_".join(parts[:2]) if len(parts) >= 3 else object_id
+        last_changed = state.get("last_changed")
+        age_minutes = _minutes_since(last_changed, now) if last_changed else None
+        if age_minutes is None:
+            continue
+        # An HA restart resets last_changed on entities that were already
+        # unavailable. Without this, every restart closed their open issues
+        # and reopened them as fresh notifications once the grace period passed.
+        already_open = (
+            store.is_open(f"unavailable:{entity_id}")
+            or store.is_open(f"unavailable_group:{prefix}")
+        )
+        if age_minutes < UNAVAILABLE_GRACE_MINUTES and not already_open:
+            continue
         unavail_by_prefix[prefix].append((entity_id, state.get("state", "unavailable"), int(age_minutes)))
 
     for prefix, entries in unavail_by_prefix.items():
@@ -337,68 +338,8 @@ def check_ha_system_health(ha_client, ollama_client, store, config, now):
             summary=f"{title} update available: {installed} → {latest}",
         ))
 
-    # HA Repairs
-    try:
-        repairs = ha_client.get_repairs()
-    except Exception as exc:
-        issues.append(Issue(
-            key="repairs_unreachable",
-            summary=f"Could not read HA repairs ({exc})",
-        ))
-        repairs = []
-
-    for repair in repairs:
-        if repair.get("ignored") or repair.get("dismissed_version"):
-            continue
-        issue_id = repair.get("issue_id", "unknown")
-        domain = repair.get("domain", "")
-        severity = repair.get("severity", "warning")
-        translation_key = repair.get("translation_key") or issue_id
-        issues.append(Issue(
-            key=f"repair:{domain}:{issue_id}",
-            summary=f"HA repair [{severity}] {domain}: {translation_key}",
-        ))
-
-    # Error log — new ERROR/CRITICAL lines since last poll
-    try:
-        ha_start_time = ha_client.get_start_time()
-        log_text = ha_client.get_error_log()
-    except Exception as exc:
-        issues.append(Issue(
-            key="error_log_unreachable",
-            summary=f"Could not read HA error log ({exc})",
-        ))
-        return issues
-
-    first_run = store.get_meta("ha_start_time") == ""
-    if first_run or ha_start_time != store.get_meta("ha_start_time"):
-        store.set_meta("ha_start_time", ha_start_time)
-        # On first run or HA restart, skip existing log content — only watch
-        # for new errors from this point forward.
-        store.set_meta("error_log_offset", len(log_text))
-        return issues
-
-    offset = int(store.get_meta("error_log_offset", "0"))
-    new_content = log_text[offset:]
-    store.set_meta("error_log_offset", len(log_text))
-
-    # Key errors by logger + date so each logger raises at most one issue
-    # per day — avoids a burst of identical notifications for a noisy component.
-    today = now.date().isoformat()
-    seen = {}
-    for line in new_content.splitlines():
-        m_level = _LOG_LEVEL_RE.match(line)
-        if not m_level:
-            continue
-        m_logger = _LOG_LOGGER_RE.search(line)
-        logger = m_logger.group(1) if m_logger else "unknown"
-        seen[logger] = (m_level.group(1), line.strip())
-
-    for logger, (level, line) in seen.items():
-        issues.append(Issue(
-            key=f"log_error:{logger}:{today}",
-            summary=f"HA log {level} [{logger}]: {line[:200]}",
-        ))
+    # Repairs and the error log are not checked here: current HA serves both
+    # only over the WebSocket API (see ADR 0005).
 
     return issues
 
