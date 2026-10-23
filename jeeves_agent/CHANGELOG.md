@@ -3,6 +3,13 @@
 Part of [[projects/jeeves-agent/CLAUDE|jeeves-agent]]. See
 [[projects/jeeves-agent/jeeves_agent/README|jeeves_agent/README.md]] for the add-on overview.
 
+## 0.4.1
+
+- Fixed history window: `get_history` never passed `end_time`, and HA then
+  returns only the first day after `start`. Every learned temperature and
+  humidity baseline, and the camera event-rate average, has been built from
+  the oldest day of the intended 10-day window, never the recent nine.
+
 ## 0.4.0
 
 - Jeeves posts every issue open and close to a Matrix room, the raw feed for
