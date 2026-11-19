@@ -38,7 +38,10 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build and push add-on image
-        uses: home-assistant/builder@08c77177033dd67aa945289bde69ead9f9d777d1 # master on 2026-10-23 (builder image 2026.02.1), last good build
+        # Pinned by release TAG, not SHA: the action uses its own ref name as the builder
+        # image tag, so @<sha> pulls amd64-builder:<sha>, which doesn't exist (run 44539657367).
+        # @master and @2026.02.1 both resolve to image 2026.02.1, the last good build's.
+        uses: home-assistant/builder@2026.02.1
         with:
           args: |
             --amd64 --aarch64 \
