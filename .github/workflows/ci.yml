@@ -1,0 +1,19 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Ruff
+        run: pipx run ruff==0.14.5 check jeeves_agent
+      - name: Every module compiles
+        run: python3 -m compileall -q jeeves_agent
