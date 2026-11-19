@@ -9,6 +9,11 @@ on:
       - ".github/workflows/build.yaml"
   workflow_dispatch:
 
+# Pinned to commit SHAs (SW-77): the HA builder changed behaviour under @master before.
+# To move a pin, run the build once by hand (workflow_dispatch) on a branch first.
+permissions:
+  contents: read
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -17,23 +22,23 @@ jobs:
       packages: write
     steps:
       - name: Check out repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
       - name: Get add-on information
         id: info
-        uses: home-assistant/actions/helpers/info@master
+        uses: home-assistant/actions/helpers/info@cd6f3635a740c84d8a14f6121a90068b8ece6bf6 # master on 2026-10-23, last good build
         with:
           path: "./jeeves_agent"
 
       - name: Login to GitHub Container Registry
-        uses: docker/login-action@v3
+        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
         with:
           registry: ghcr.io
           username: ${{ github.repository_owner }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build and push add-on image
-        uses: home-assistant/builder@master
+        uses: home-assistant/builder@08c77177033dd67aa945289bde69ead9f9d777d1 # master on 2026-10-23 (builder image 2026.02.1), last good build
         with:
           args: |
             --amd64 --aarch64 \
