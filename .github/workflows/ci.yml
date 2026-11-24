@@ -17,3 +17,6 @@ jobs:
         run: pipx run ruff==0.14.5 check jeeves_agent
       - name: Every module compiles
         run: python3 -m compileall -q jeeves_agent
+      - name: Unit tests
+        working-directory: jeeves_agent
+        run: python3 -m unittest discover -s tests -t .

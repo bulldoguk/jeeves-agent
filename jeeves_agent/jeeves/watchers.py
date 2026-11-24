@@ -25,6 +25,7 @@ HISTORY_WINDOW_HOURS = 24 * 10  # matches HA's typical default recorder retentio
 CAMERA_EVENT_RATE_MULTIPLIER = 5
 MIN_CAMERA_HISTORY_DAYS = 3  # need at least this many past days to trust the average
 UNAVAILABLE_GRACE_MINUTES = 15
+MISSING_GRACE_MINUTES = UNAVAILABLE_GRACE_MINUTES
 
 # Physical device domains where unavailable/unknown signals a real problem.
 # Excludes: helpers (input_*), automations, scripts, persons, zones, buttons/events
@@ -62,6 +63,8 @@ def check_stale_entities(ha_client, ollama_client, store, config, now):
             try:
                 state = ha_client.get_state(entity_id)
             except Exception as exc:
+                if _is_missing(exc):
+                    continue
                 issues.append(
                     Issue(
                         key=f"unreachable:{entity_id}",
@@ -104,6 +107,8 @@ def check_temperature_anomalies(ha_client, ollama_client, store, config, now):
             history = ha_client.get_history(entity_id, hours=HISTORY_WINDOW_HOURS)
             current_state = ha_client.get_state(entity_id)
         except Exception as exc:
+            if _is_missing(exc):
+                continue
             issues.append(
                 Issue(
                     key=f"unreachable:{entity_id}",
@@ -140,6 +145,8 @@ def check_humidity_anomalies(ha_client, ollama_client, store, config, now):
             history = ha_client.get_history(entity_id, hours=HISTORY_WINDOW_HOURS)
             current_state = ha_client.get_state(entity_id)
         except Exception as exc:
+            if _is_missing(exc):
+                continue
             issues.append(
                 Issue(
                     key=f"unreachable:{entity_id}",
@@ -186,6 +193,8 @@ def check_camera_event_rate(ha_client, ollama_client, store, config, now):
         try:
             history = ha_client.get_history(entity_id, hours=HISTORY_WINDOW_HOURS)
         except Exception as exc:
+            if _is_missing(exc):
+                continue
             issues.append(
                 Issue(
                     key=f"unreachable:{entity_id}",
@@ -240,6 +249,12 @@ def _minutes_since(iso_timestamp, now):
     except ValueError:
         return None
     return (now - then).total_seconds() / 60
+
+
+def _is_missing(exc):
+    """True when HA answered 404: the entity doesn't exist. check_missing_entities reports that;
+    the per-entity checks stay quiet so one missing ID doesn't also read as a network fault."""
+    return getattr(getattr(exc, "response", None), "status_code", None) == 404
 
 
 def check_ha_system_health(ha_client, ollama_client, store, config, now):
@@ -344,6 +359,64 @@ def check_ha_system_health(ha_client, ollama_client, store, config, now):
     return issues
 
 
+def _watched_ids(config):
+    """Every entity ID named in the options, in order, without repeats. A circuit_switches entry is a
+    "switch:light" pair, so both halves count."""
+    ids = []
+    for name in ("watch_temperature_entities", "watch_humidity_entities", "watch_camera_entities",
+                 "watch_camera_motion_entities"):
+        ids.extend(getattr(config, name, []) or [])
+    for mapping in getattr(config, "circuit_switches", []) or []:
+        ids.extend(part.strip() for part in mapping.split(":", 1))
+    return list(dict.fromkeys(i for i in ids if i))
+
+
+def check_missing_entities(ha_client, ollama_client, store, config, now):
+    """Flag any configured entity ID that no longer exists in Home Assistant (renamed or re-paired).
+
+    A missing entity has no state at all, so neither the stale check (needs a value) nor the zombie
+    check (needs unavailable/unknown) can see it, and the motion check silently gets empty history.
+
+    Guards:
+    - one GET /api/states per cycle; if it fails or comes back empty (HA starting up), say nothing,
+      because check_ha_system_health already reports an unreachable API and a half-started HA would
+      otherwise flag every watched ID at once;
+    - an ID must be absent for MISSING_GRACE_MINUTES before it's reported, so an integration reload
+      doesn't alert. First-absent times live in the store's metadata, so they survive a restart.
+    """
+    ids = _watched_ids(config)
+    if not ids:
+        return []
+    try:
+        states = ha_client.get_all_states()
+    except Exception:
+        return []
+    present = {s.get("entity_id") for s in states or []}
+    if not present:
+        return []
+
+    issues = []
+    for entity_id in ids:
+        meta_key = f"missing_since:{entity_id}"
+        if entity_id in present:
+            if store.get_meta(meta_key):
+                store.set_meta(meta_key, "")
+            continue
+        since = store.get_meta(meta_key)
+        if not since:
+            store.set_meta(meta_key, now.isoformat())
+            since = now.isoformat()
+        minutes = _minutes_since(since, now) or 0
+        if minutes < MISSING_GRACE_MINUTES and not store.is_open(f"missing:{entity_id}"):
+            continue
+        issues.append(Issue(
+            key=f"missing:{entity_id}",
+            summary=(f"{entity_id} is in Jeeves's config but doesn't exist in Home Assistant "
+                     f"(renamed or re-paired?). Nothing is monitoring it; update the add-on options."),
+        ))
+    return issues
+
+
 # Registered watchers, run in order each poll cycle.
 WATCHERS = [
     check_stale_entities,
@@ -351,4 +424,5 @@ WATCHERS = [
     check_humidity_anomalies,
     check_camera_event_rate,
     check_ha_system_health,
+    check_missing_entities,
 ]
