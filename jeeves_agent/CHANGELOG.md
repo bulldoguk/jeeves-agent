@@ -3,6 +3,16 @@
 Part of [[projects/jeeves-agent/CLAUDE|jeeves-agent]]. See
 [[projects/jeeves-agent/jeeves_agent/README|jeeves_agent/README.md]] for the add-on overview.
 
+## 0.4.2
+
+- New watcher: **missing entity**. Any ID in the `watch_*` options or `circuit_switches` that no
+  longer exists in Home Assistant (renamed or re-paired) raises `missing:<entity_id>` after 15
+  minutes. Before this, a missing motion sensor or circuit switch was skipped silently, and a
+  missing temperature, humidity or camera entity was reported as "unreachable", which reads like a
+  network fault. A failed or empty state fetch (HA starting up) reports nothing, so a restart can't
+  flood. The per-entity checks now leave a 404 to this watcher.
+- First unit tests (`jeeves_agent/tests/`, stdlib `unittest`), run in CI.
+
 ## 0.4.1
 
 - Fixed history window: `get_history` never passed `end_time`, and HA then

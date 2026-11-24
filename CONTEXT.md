@@ -20,6 +20,8 @@ decisions belong in [[projects/jeeves-agent/SPEC|SPEC.md]] and
 
 **Zombie entity** — An entity in `unavailable` or `unknown` state for longer than a grace period. Term borrowed from HAGHS. Jeeves uses this for HA system health monitoring, restricted to physical device domains.
 
+**Missing entity** — A watched entity ID (from a `watch_*` option or `circuit_switches`) that no longer exists in Home Assistant at all, usually after a rename or re-pair. Distinct from a zombie (exists, but unavailable) and a stale entity (exists, but quiet). Reported after a 15-minute grace period; never reported when the state fetch fails or comes back empty.
+
 **HA Repairs** — HA's built-in issue registry (the yellow banners in Settings → Repairs). Distinct from Jeeves Issues. Not accessible via REST API; not in Jeeves v1 scope.
 
 **Motion event** — A state transition to `"on"` on a `binary_sensor.*_motion` entity, driven by the camera's ONVIF event subscription via the native Reolink HA integration. Used by Jeeves to measure camera event rate. Distinct from a RustyCam clip — both are triggered by the same ONVIF event but are independent pipelines.
